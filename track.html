@@ -62,7 +62,7 @@
                 <!-- SOS Status Alert -->
                 <div id="sos-status-card" class="sos-alert-box p-6 rounded-xl shadow-lg border-l-8 border-green-500 bg-white">
                     <h2 class="text-2xl font-bold mb-2 text-gray-800">STATUS PENGGUNA</h2>
-                    <p class="text-sm text-gray-500 mb-4">Nama: <span id="pengguna-name" class="font-semibold text-gray-700">Memuat...</span></p>
+                    <p class="text-sm text-gray-500 mb-4">Nama: <span id="pengguna-nama" class="font-semibold text-gray-700">Yuli</span></p>
                     <div id="sos-status-indicator" class="text-xl font-bold text-green-500">
                         AMAN
                     </div>
@@ -73,16 +73,12 @@
                     <h2 class="text-2xl font-bold mb-4 text-[#0D6E9F]">DATA SENSOR LIVE</h2>
                     <div class="space-y-3">
                         <div class="flex justify-between items-center">
-                            <span class="text-gray-600 font-medium">Jarak Hambatan:</span>
-                            <span id="distance-value" class="text-xl font-extrabold text-gray-800">N/A</span>
+                            <span class="text-gray-600 font-medium">Latitude:<span id="pengguna-lat" class="font-semibold text-gray-700">-7.782324330679297</span></p>
+                            <span id="lat-value" class="text-sm font-semibold text-gray-800">
                         </div>
                         <div class="flex justify-between items-center">
-                            <span class="text-gray-600 font-medium">Latitude:</span>
-                            <span id="lat-value" class="text-sm font-semibold text-gray-800">N/A</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-600 font-medium">Longitude:</span>
-                            <span id="lon-value" class="text-sm font-semibold text-gray-800">N/A</span>
+                            <span class="text-gray-600 font-medium">Longitude:<span id="pengguna-lon" class="font-semibold text-gray-700">110.41574817700014</span></p>
+                            <span id="lon-value" class="text-sm font-semibold text-gray-800">
                         </div>
                     </div>
                 </div>
@@ -91,7 +87,7 @@
                 <button id="acknowledge-btn" onclick="acknowledgeSOS()" disabled
                     class="w-full py-4 px-6 rounded-xl text-lg font-bold transition-all duration-300
                            bg-gray-400 text-white cursor-not-allowed shadow-md hover:shadow-xl">
-                    SAYA SUDAH TAHU (Acknowledge)
+                    SAYA SUDAH TAHU
                 </button>
 
             </div>
@@ -122,9 +118,10 @@
         // --- Variabel Global untuk Peta ---
         let map;
         let userMarker;
-        // Gunakan lokasi yang lebih netral jika data tidak tersedia (Contoh: Jakarta)
-        const DEFAULT_LOCATION = { lat: -6.2000, lng: 106.8167 }; 
-        const GMAPS_API_KEY = "YOUR_GOOGLE_MAPS_API_KEY"; // Ganti dengan kunci API Google Maps Anda yang valid
+        // Gunakan lokasi default awal (menggunakan koordinat terakhir yang disediakan: Yogyakarta area)
+        const DEFAULT_LOCATION = { lat: -7.781878, lng: 110.385732 }; 
+        // PENTING: Ganti placeholder ini dengan KUNCI API Google Maps Anda yang valid
+        const GMAPS_API_KEY = "MASUKKAN_KUNCI_API_GOOGLE_MAPS_ANDA_DI_SINI"; 
 
         // Helper function untuk memeriksa apakah nilai adalah angka valid
         function isValidCoordinate(coord) {
@@ -158,12 +155,27 @@
             });
             userMarker.setAnimation(null); // Matikan animasi di awal
             console.log("Map initialized at:", initialPos);
-            // Mulai mendengarkan data setelah peta diinisialisasi
-            listenForData();
+            
+            // Setelah peta diinisialisasi, mulai mendengarkan data pengguna
+            listenForUserData(); 
         }
 
-        // --- Fungsi Utama untuk Mendengarkan Data Real-time ---
-        function listenForData() {
+        // --- Fungsi untuk Mendengarkan Nama Pengawas (di node /pengawas) ---
+        function listenForSupervisorName() {
+             // Mendengarkan node pengawas/nama (sesuai struktur JSON yang Anda berikan)
+             const supervisorRef = db.ref('pengawas/nama'); 
+             supervisorRef.on('value', (snapshot) => {
+                 // Ambil nama atau gunakan 'Pengawas' sebagai default
+                 const name = snapshot.val() || 'Pengawas'; 
+                 document.getElementById('supervisor-name').textContent = `Halo, ${name}!`;
+             }, (error) => {
+                 console.error("Error reading supervisor name:", error);
+                 document.getElementById('supervisor-name').textContent = `Halo, Pengawas!`;
+             });
+        }
+
+        // --- Fungsi Utama untuk Mendengarkan Data Real-time Pengguna ---
+        function listenForUserData() {
             // Path data pengguna (sesuai skema yang Anda berikan)
             const userRef = db.ref('pengguna');
             
@@ -174,15 +186,9 @@
                     return;
                 }
 
-                // 1. Update Nama Pengguna
+                // 1. Update Nama Pengguna yang Dilacak
                 document.getElementById('pengguna-name').textContent = data.nama || 'Pengguna Tidak Dikenal';
-                // Asumsi field nama_pengawas ada di path 'pengawas' atau disetel manual di sini
-                // Untuk demo, kita set nama pengawas statis dulu
-                db.ref('pengawas/nama').once('value', (s) => {
-                    document.getElementById('supervisor-name').textContent = `Halo, ${s.val() || 'Pengawas'}!`;
-                });
-
-
+                
                 // 2. Update Lokasi & Sensor
                 // PENTING: Konversi dan validasi koordinat untuk mencegah InvalidValueError
                 const lat = isValidCoordinate(data.lat) ? parseFloat(data.lat) : 0;
@@ -191,6 +197,8 @@
                 
                 document.getElementById('lat-value').textContent = lat.toFixed(6);
                 document.getElementById('lon-value').textContent = lon.toFixed(6);
+                
+                // Tambahkan pengecekan null/undefined untuk data.distance
                 document.getElementById('distance-value').textContent = (data.distance !== undefined && data.distance !== null) 
                     ? (data.distance === -1 ? 'Jauh' : `${data.distance} cm`) 
                     : 'N/A';
@@ -204,9 +212,8 @@
                         // Jika koordinat tidak valid (lat=0 atau NaN), jangan update peta/marker
                         console.log("Koordinat tidak valid, marker tidak diperbarui.");
                     }
-                } else if (!map) {
-                    // Inisialisasi peta dengan lokasi pertama yang valid atau default
-                    // Inisialisasi sekarang dilakukan di callback Google Maps
+                } else {
+                    // Jika peta belum siap (misalnya, di call sebelum initMap selesai)
                     console.log("Menunggu inisialisasi peta...");
                 }
 
@@ -275,12 +282,13 @@
                     })
                     .catch((error) => {
                         console.error("Gagal mereset status SOS:", error);
-                        // Menggunakan custom modal/message box jika tidak boleh menggunakan alert
-                        alert("Gagal mereset status SOS di database. Error: " + error.message);
+                        // Menggunakan pesan konsol sebagai pengganti alert/modal.
+                        console.error("Kesalahan: Gagal mereset status SOS di database. Error: " + error.message);
                     });
             } else if (isConfirmed !== null) {
                  // Jika pengguna mengetik sesuatu tapi bukan 'RESET'
-                 alert("Batal mereset. Status SOS Pengguna tetap aktif.");
+                 // Menggunakan pesan konsol sebagai pengganti alert.
+                 console.log("Batal mereset. Status SOS Pengguna tetap aktif.");
             }
         }
         
@@ -298,7 +306,7 @@
                 return;
             }
             const script = document.createElement('script');
-            // Catatan: Ganti 'YOUR_GOOGLE_MAPS_API_KEY' dengan kunci API yang valid untuk menampilkan peta
+            // Catatan: Ganti 'MASUKKAN_KUNCI_API_GOOGLE_MAPS_ANDA_DI_SINI' dengan kunci API yang valid untuk menampilkan peta
             // Callback function sekarang adalah 'initMap'
             script.src = `https://maps.googleapis.com/maps/api/js?key=${GMAPS_API_KEY}&callback=initMap`;
             script.async = true;
@@ -311,8 +319,9 @@
 
         // Panggil fungsi utama setelah window memuat
         window.onload = () => {
-             // Mulai memuat Google Maps (yang akan memanggil initMap, lalu initMap akan memanggil listenForData)
+             // Mulai memuat Google Maps (yang akan memanggil initMap, lalu initMap akan memanggil listenForUserData)
              loadGoogleMapsScript();
+             listenForSupervisorName(); // Mulai mendengarkan nama pengawas secara independen
         };
     </script>
 
