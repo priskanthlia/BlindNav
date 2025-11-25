@@ -1,0 +1,14 @@
+{
+  "pengawas": {
+    "lat": -7.781878677117695,
+    "lon": 110.38573265053442,
+    "nama": "titin",
+    "status_sos": false
+  },
+  "pengguna": {
+    "lat": -7.781878677117695,
+    "lon": 110.38573265053442,
+    "nama": "yuli",
+    "status_sos": false
+  }
+}
