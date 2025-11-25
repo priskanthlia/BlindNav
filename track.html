@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlindNav - Halaman Pengawas</title>
+    <!-- Load Tailwind CSS untuk styling modern dan responsif -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fc; }
+        .sos-alert-box {
+            transition: all 0.3s ease-in-out;
+            animation: pulse 2s infinite;
+        }
+        /* Menghentikan animasi secara default */
+        #sos-status-card { animation-play-state: paused; }
+        .sos-active {
+            animation-play-state: running !important;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+    <!-- Firebase SDK v8 (Sesuai dengan kode Anda) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body class="min-h-screen">
+
+    <!-- Navbar -->
+    <nav class="bg-[#0D6E9F] p-4 shadow-lg">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="text-white text-2xl font-bold tracking-wider">
+                BLINDNAV <span class="text-sm font-light italic ml-2">Pengawas</span>
+            </div>
+            <div class="text-white text-lg font-medium" id="supervisor-name">
+                Halo, Pengawas!
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Grid -->
+    <main class="max-w-7xl mx-auto p-4 md:p-8">
+        <h1 class="text-3xl font-extrabold text-[#0D6E9F] mb-6">LIVE TRACKING & MONITORING</h1>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- 1. Peta Lokasi (Main Area) -->
+            <div class="lg:col-span-2 bg-white rounded-xl shadow-2xl overflow-hidden h-[60vh] lg:h-[70vh]">
+                <div id="map" class="w-full h-full">
+                    <!-- Google Map akan dimuat di sini -->
+                </div>
+            </div>
+
+            <!-- 2. Status & Data Panel (Sidebar) -->
+            <div class="lg:col-span-1 flex flex-col space-y-6">
+
+                <!-- SOS Status Alert -->
+                <div id="sos-status-card" class="sos-alert-box p-6 rounded-xl shadow-lg border-l-8 border-green-500 bg-white">
+                    <h2 class="text-2xl font-bold mb-2 text-gray-800">STATUS PENGGUNA</h2>
+                    <p class="text-sm text-gray-500 mb-4">Nama: <span id="pengguna-name" class="font-semibold text-gray-700">Memuat...</span></p>
+                    <div id="sos-status-indicator" class="text-xl font-bold text-green-500">
+                        AMAN
+                    </div>
+                </div>
+
+                <!-- Live Sensor Data -->
+                <div class="bg-white p-6 rounded-xl shadow-lg border-l-8 border-[#0D6E9F]">
+                    <h2 class="text-2xl font-bold mb-4 text-[#0D6E9F]">DATA SENSOR LIVE</h2>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 font-medium">Jarak Hambatan:</span>
+                            <span id="distance-value" class="text-xl font-extrabold text-gray-800">N/A</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 font-medium">Latitude:</span>
+                            <span id="lat-value" class="text-sm font-semibold text-gray-800">N/A</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 font-medium">Longitude:</span>
+                            <span id="lon-value" class="text-sm font-semibold text-gray-800">N/A</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Acknowledge Button (Untuk mereset status SOS di sisi pengawas) -->
+                <button id="acknowledge-btn" onclick="acknowledgeSOS()" disabled
+                    class="w-full py-4 px-6 rounded-xl text-lg font-bold transition-all duration-300
+                           bg-gray-400 text-white cursor-not-allowed shadow-md hover:shadow-xl">
+                    SAYA SUDAH TAHU (Acknowledge)
+                </button>
+
+            </div>
+        </div>
+    </main>
+
+
+    <script>
+        // Gunakan variable global yang disediakan
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            // Konfigurasi Firebase dari kode Anda
+            apiKey: "AIzaSyDNrYMOY4FBHlSeGDNBaboktNdF5chqGfI",
+            authDomain: "blind-nav2.firebaseapp.com",
+            databaseURL: "https://blind-nav2-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "blind-nav2",
+            storageBucket: "blind-nav2.firebasestorage.app",
+            messagingSenderId: "558883900786",
+            appId: "1:558883900786:web:bd8c2f27d9f624b1f0a1eb"
+        };
+        
+        // --- Inisialisasi Firebase ---
+        // PENTING: Untuk mengatasi permission_denied, kita akan mencoba inisialisasi tanpa Auth, 
+        // mengandalkan bahwa rules Firebase RTDB Anda mengizinkan read data publik.
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        
+        // --- Variabel Global untuk Peta ---
+        let map;
+        let userMarker;
+        // Gunakan lokasi yang lebih netral jika data tidak tersedia (Contoh: Jakarta)
+        const DEFAULT_LOCATION = { lat: -6.2000, lng: 106.8167 }; 
+        const GMAPS_API_KEY = "YOUR_GOOGLE_MAPS_API_KEY"; // Ganti dengan kunci API Google Maps Anda yang valid
+
+        // Helper function untuk memeriksa apakah nilai adalah angka valid
+        function isValidCoordinate(coord) {
+            const num = parseFloat(coord);
+            return !isNaN(num) && num !== 0 && isFinite(num);
+        }
+
+        // --- Inisialisasi Peta Google Maps ---
+        function initMap(initialLat, initialLon) {
+            const initialPos = { lat: initialLat, lng: initialLon };
+
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 15,
+                center: initialPos,
+                mapId: 'DEMO_MAP_ID', // ID Peta yang bersih
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: false
+            });
+
+            // Marker untuk Pengguna
+            userMarker = new google.maps.Marker({
+                position: initialPos,
+                map: map,
+                title: 'Lokasi Pengguna',
+                icon: {
+                    url: 'https://maps.google.com/mapfiles/kml/pal2/icon3.png', // Ikon orang
+                    scaledSize: new google.maps.Size(40, 40)
+                },
+                animation: google.maps.Animation.BOUNCE // Animasi saat SOS aktif
+            });
+            userMarker.setAnimation(null); // Matikan animasi di awal
+            console.log("Map initialized at:", initialPos);
+            // Mulai mendengarkan data setelah peta diinisialisasi
+            listenForData();
+        }
+
+        // --- Fungsi Utama untuk Mendengarkan Data Real-time ---
+        function listenForData() {
+            // Path data pengguna (sesuai skema yang Anda berikan)
+            const userRef = db.ref('pengguna');
+            
+            userRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (!data) {
+                    console.log("Data pengguna tidak ditemukan di Firebase.");
+                    return;
+                }
+
+                // 1. Update Nama Pengguna
+                document.getElementById('pengguna-name').textContent = data.nama || 'Pengguna Tidak Dikenal';
+                // Asumsi field nama_pengawas ada di path 'pengawas' atau disetel manual di sini
+                // Untuk demo, kita set nama pengawas statis dulu
+                db.ref('pengawas/nama').once('value', (s) => {
+                    document.getElementById('supervisor-name').textContent = `Halo, ${s.val() || 'Pengawas'}!`;
+                });
+
+
+                // 2. Update Lokasi & Sensor
+                // PENTING: Konversi dan validasi koordinat untuk mencegah InvalidValueError
+                const lat = isValidCoordinate(data.lat) ? parseFloat(data.lat) : 0;
+                const lon = isValidCoordinate(data.lon) ? parseFloat(data.lon) : 0;
+                const newPos = { lat: lat, lng: lon };
+                
+                document.getElementById('lat-value').textContent = lat.toFixed(6);
+                document.getElementById('lon-value').textContent = lon.toFixed(6);
+                document.getElementById('distance-value').textContent = (data.distance !== undefined && data.distance !== null) 
+                    ? (data.distance === -1 ? 'Jauh' : `${data.distance} cm`) 
+                    : 'N/A';
+                
+                // Perbarui peta hanya jika koordinat valid
+                if (map && userMarker) {
+                    if (lat !== 0 && lon !== 0) {
+                        userMarker.setPosition(newPos);
+                        map.setCenter(newPos);
+                    } else {
+                        // Jika koordinat tidak valid (lat=0 atau NaN), jangan update peta/marker
+                        console.log("Koordinat tidak valid, marker tidak diperbarui.");
+                    }
+                } else if (!map) {
+                    // Inisialisasi peta dengan lokasi pertama yang valid atau default
+                    // Inisialisasi sekarang dilakukan di callback Google Maps
+                    console.log("Menunggu inisialisasi peta...");
+                }
+
+
+                // 3. Update Status SOS
+                const isSOS = data.status_sos === true;
+                const indicator = document.getElementById('sos-status-indicator');
+                const card = document.getElementById('sos-status-card');
+                const acknowledgeBtn = document.getElementById('acknowledge-btn');
+
+                if (isSOS) {
+                    indicator.textContent = 'SOS DARURAT!';
+                    indicator.classList.remove('text-green-500');
+                    indicator.classList.add('text-red-600');
+                    card.classList.remove('border-green-500', 'bg-white');
+                    card.classList.add('border-red-600', 'bg-red-50', 'sos-active'); // Tambah sos-active class
+                    userMarker.setAnimation(google.maps.Animation.BOUNCE);
+                    
+                    // Aktifkan tombol Acknowledge
+                    acknowledgeBtn.disabled = false;
+                    acknowledgeBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                    acknowledgeBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+
+                    console.error("!!! SOS ALERT DARI PENGGUNA !!!");
+
+                } else {
+                    indicator.textContent = 'AMAN';
+                    indicator.classList.remove('text-red-600');
+                    indicator.classList.add('text-green-500');
+                    card.classList.remove('border-red-600', 'bg-red-50', 'sos-active'); // Hapus sos-active class
+                    card.classList.add('border-green-500', 'bg-white');
+                    userMarker.setAnimation(null);
+
+                    // Nonaktifkan tombol Acknowledge
+                    acknowledgeBtn.disabled = true;
+                    acknowledgeBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                    acknowledgeBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+                }
+            }, (error) => {
+                console.error("Error reading Firebase data:", error);
+                // Menampilkan pesan yang lebih informatif tentang permission denied
+                document.getElementById('sos-status-indicator').textContent = 'ERROR: Cek Izin Database';
+                document.getElementById('sos-status-indicator').classList.add('text-yellow-600');
+            });
+        }
+        
+        // --- Fungsi Acknowledge SOS ---
+        function acknowledgeSOS() {
+            // Gunakan konfirmasi kustom sebagai pengganti alert/confirm bawaan
+            const isConfirmed = prompt("Ketik 'RESET' untuk mengonfirmasi bahwa Anda telah mengambil tindakan dan mereset status SOS Pengguna menjadi AMAN.");
+            
+            if (isConfirmed === 'RESET') {
+                // Gunakan path 'pengguna' untuk mereset status
+                db.ref('pengguna/status_sos').set(false)
+                    .then(() => {
+                        console.log("Status SOS berhasil direset.");
+                        const btn = document.getElementById('acknowledge-btn');
+                        btn.textContent = 'SOS Direset!';
+                        btn.classList.remove('bg-red-600');
+                        btn.classList.add('bg-green-600');
+                        setTimeout(() => {
+                            btn.textContent = 'SAYA SUDAH TAHU (Acknowledge)';
+                            btn.classList.remove('bg-green-600');
+                            btn.classList.add('bg-gray-400');
+                        }, 2000);
+                    })
+                    .catch((error) => {
+                        console.error("Gagal mereset status SOS:", error);
+                        // Menggunakan custom modal/message box jika tidak boleh menggunakan alert
+                        alert("Gagal mereset status SOS di database. Error: " + error.message);
+                    });
+            } else if (isConfirmed !== null) {
+                 // Jika pengguna mengetik sesuatu tapi bukan 'RESET'
+                 alert("Batal mereset. Status SOS Pengguna tetap aktif.");
+            }
+        }
+        
+        // Mengganti alert() dan confirm() dengan prompt() dan pesan di console
+        window.confirm = (message) => {
+            console.log("Tindakan konfirmasi yang diblokir: " + message);
+            return false;
+        };
+        
+        // --- Tambahkan script Google Maps secara dinamis ---
+        function loadGoogleMapsScript() {
+            if (typeof google === 'object' && typeof google.maps === 'object') {
+                // Maps sudah dimuat, inisialisasi dengan lokasi default jika belum ada data valid
+                initMap(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lng);
+                return;
+            }
+            const script = document.createElement('script');
+            // Catatan: Ganti 'YOUR_GOOGLE_MAPS_API_KEY' dengan kunci API yang valid untuk menampilkan peta
+            // Callback function sekarang adalah 'initMap'
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${GMAPS_API_KEY}&callback=initMap`;
+            script.async = true;
+            script.onerror = () => {
+                const mapDiv = document.getElementById('map');
+                mapDiv.innerHTML = '<div class="flex items-center justify-center h-full text-center p-10 text-red-500 font-bold bg-red-100">Gagal memuat Google Maps. Pastikan API Key valid dan diizinkan.</div>';
+            };
+            document.head.appendChild(script);
+        }
+
+        // Panggil fungsi utama setelah window memuat
+        window.onload = () => {
+             // Mulai memuat Google Maps (yang akan memanggil initMap, lalu initMap akan memanggil listenForData)
+             loadGoogleMapsScript();
+        };
+    </script>
+
+</body>
+</html>
