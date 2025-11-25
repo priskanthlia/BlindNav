@@ -31,11 +31,6 @@ void parseJSON(String json) {
 
   int idx;
 
-  idx = json.indexOf("distance:");
-  if (idx != -1) {
-    distanceVal = json.substring(idx + 9, json.indexOf(",", idx)).toInt();
-  }
-
   idx = json.indexOf("lat:");
   if (idx != -1) {
     latVal = json.substring(idx + 4, json.indexOf(",", idx)).toFloat();
@@ -44,16 +39,6 @@ void parseJSON(String json) {
   idx = json.indexOf("lon:");
   if (idx != -1) {
     lonVal = json.substring(idx + 4, json.indexOf(",", idx)).toFloat();
-  }
-
-  idx = json.indexOf("sats:");
-  if (idx != -1) {
-    satsVal = json.substring(idx + 5, json.indexOf(",", idx)).toInt();
-  }
-
-  idx = json.indexOf("hdop:");
-  if (idx != -1) {
-    hdopVal = json.substring(idx + 5).toInt();
   }
 }
 
@@ -107,16 +92,19 @@ void loop() {
   if (millis() - lastSend > 3000) {
     lastSend = millis();
 
-    String path = "/devices/device_001";
+    String path = "/devices/pengawas";
 
-    Firebase.setInt(fbdo, path + "/distance", distanceVal);
     Firebase.setFloat(fbdo, path + "/lat", latVal);
     Firebase.setFloat(fbdo, path + "/lon", lonVal);
-    Firebase.setInt(fbdo, path + "/sats", satsVal);
-    Firebase.setInt(fbdo, path + "/hdop", hdopVal);
-    Firebase.setInt(fbdo, path + "/timestamp", millis());
 
-    Serial.println("Data uploaded!\n");
+    Serial.println("Data uploaded to pengawas!\n");
+
+    String path = "/devices/pengguna";
+
+    Firebase.setFloat(fbdo, path + "/lat", latVal);
+    Firebase.setFloat(fbdo, path + "/lon", lonVal);
+
+    Serial.println("Data uploaded to pengguna!\n");
   }
 
   delay(20);

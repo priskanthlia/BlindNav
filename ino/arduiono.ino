@@ -74,25 +74,18 @@ void loop() {
   if (newData) {
     gps.f_get_position(&flat, &flon, &age);
 
-    if (flat == TinyGPS::GPS_INVALID_F_ANGLE) flat = 0;
-    if (flon == TinyGPS::GPS_INVALID_F_ANGLE) flon = 0;
+    if (flat == TinyGPS::GPS_INVALID_F_ANGLE) flat = -7.782324330679297;
+    if (flon == TinyGPS::GPS_INVALID_F_ANGLE) flon = 110.41574817700014;
   }
 
   // ---------------------------
   // SEND DATA TO ESP32 (JSON format)
   // ---------------------------
-  // ESP32 sangat mudah membaca format JSON ini per baris
-  Serial.print("{\"distance\":");
-  Serial.print(distance);
-  Serial.print(",\"lat\":");
+  Serial.print("{\"lat\":");
   Serial.print(flat, 6);
   Serial.print(",\"lon\":");
   Serial.print(flon, 6);
-  Serial.print(",\"sats\":");
-  Serial.print(gps.satellites());
-  Serial.print(",\"hdop\":");
-  Serial.print(gps.hdop());
-  Serial.println("}");   // penting: akhiri dengan newline !!
+  Serial.println("}");  
 
   delay(500);
 }
