@@ -99,10 +99,10 @@ void loop() {
 
     Serial.println("Data uploaded to pengawas!\n");
 
-    String path = "/devices/pengguna";
+    String path2 = "/devices/pengguna";
 
     Firebase.setFloat(fbdo, path + "/lat", latVal);
-    Firebase.setFloat(fbdo, path + "/lon", lonVal);
+    Firebase.setFloat(fbdo, path2 + "/lon", lonVal);
 
     Serial.println("Data uploaded to pengguna!\n");
   }

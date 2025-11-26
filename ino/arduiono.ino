@@ -68,14 +68,14 @@ void loop() {
     }
   }
 
-  float flat = 0, flon = 0;
+  float flat = -7.782188254305206, flon = 110.41453580177927;
   unsigned long age;
 
   if (newData) {
     gps.f_get_position(&flat, &flon, &age);
 
-    if (flat == TinyGPS::GPS_INVALID_F_ANGLE) flat = -7.782324330679297;
-    if (flon == TinyGPS::GPS_INVALID_F_ANGLE) flon = 110.41574817700014;
+    if (flat == TinyGPS::GPS_INVALID_F_ANGLE) flat = 7.782188254305206;
+    if (flon == TinyGPS::GPS_INVALID_F_ANGLE) flon = 110.41453580177927;
   }
 
   // ---------------------------
