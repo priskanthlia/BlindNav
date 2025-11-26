@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlindNav - Halaman Pengawas</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Font (Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- FIREBASE -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    
+    <!-- LEAFLET -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fc; }
+
+        .sos-alert-box { transition: all 0.3s ease-in-out; animation: none; }
+        .sos-active { animation: pulse-red 2s infinite; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
+        .sos-waiting { animation: pulse-orange 2s infinite; box-shadow: 0 0 15px rgba(255, 165, 0, 0.5); }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        @keyframes pulse-orange {
+            0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(251, 191, 36, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+        }
+
+        #map { z-index: 1; }
+    </style>
+</head>
+
+<body class="min-h-screen">
+
+    <!-- NAVBAR -->
+    <nav class="bg-[#0D6E9F] p-4 shadow-lg">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center space-y-2 md:space-y-0">
+            <div class="text-white text-2xl font-bold tracking-wider">
+                BLINDNAV <span class="text-sm font-light italic ml-2">Pengawas</span>
+            </div>
+            <div class="text-white text-lg font-medium" id="supervisor-name">
+                Halo, Pengawas!
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN -->
+    <main class="max-w-7xl mx-auto p-4 md:p-8">
+        <h1 class="text-3xl font-extrabold text-[#0D6E9F] mb-6">LIVE TRACKING & MONITORING</h1>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- MAP -->
+            <div class="lg:col-span-2 bg-white rounded-xl shadow-2xl overflow-hidden h-[60vh] lg:h-[70vh]">
+                <div id="map" class="w-full h-full"></div>
+            </div>
+
+            <!-- PANEL -->
+            <div class="lg:col-span-1 flex flex-col space-y-6">
+
+                <!-- SOS CARD -->
+                <div id="sos-status-card" class="sos-alert-box p-6 rounded-xl shadow-lg border-l-8 border-green-500 bg-white">
+                    <h2 class="text-2xl font-bold mb-2 text-gray-800">STATUS PENGGUNA</h2>
+                    <p class="text-sm text-gray-500 mb-1">Nama: <span id="pengguna-nama" class="font-semibold text-gray-700"></span></p>
+                    <p class="text-sm text-gray-500 mb-1">HP  : <span id="pengguna-hp" class="font-semibold text-gray-700"></span></p>
+
+                    <div id="sos-status-indicator" class="text-xl font-bold text-green-500 mt-4">
+                        AMAN
+                    </div>
+                </div>
+
+                <!-- BUTTON -->
+                <button id="supervisor-action-btn" disabled
+                    class="w-full py-4 px-6 rounded-xl text-lg font-bold
+                           bg-gray-400 text-white cursor-not-allowed shadow-md transition duration-200">
+                    SAYA AKAN KE SANA
+                </button>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- JS TERPISAH -->
+    <script src="script.js"></script>
+</body>
+</html>
