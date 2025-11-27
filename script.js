@@ -19,7 +19,7 @@ const db = firebase.database();
 // GLOBAL VARIABLE
 let map;
 let userMarker;
-const DEFAULT_POS = [-7.7956, 110.3695];
+const DEFAULT_POS = [-7.7825926, 110.4153211];
 
 // INIT MAP
 function initLeaflet() {
