@@ -86,6 +86,9 @@ function listenUserData() {
 
         // Database menggunakan "sos" bukan "status-sos"
         updateSOSUI(data.sos || "aman");
+        
+        // Tampilkan jarak dan status buzzer
+        updateDistanceUI(data.distance, data.buzzer);
     });
 }
 
@@ -94,12 +97,36 @@ function listenSupervisorData() {
     db.ref("devices/pengguna").on("value", snap => {
         let data = snap.val();
 
-        const defaultNama = "Titin";
+        const defaultNama = "Lisa";
         // Database menggunakan field "pengawas" untuk nama pengawas
         const nama = data?.pengawas || defaultNama;
         
         document.getElementById("supervisor-name").textContent = "Halo, " + nama + "!";
     });
+}
+
+// UPDATE UI JARAK DAN BUZZER
+function updateDistanceUI(distance, buzzer) {
+    const distanceEl = document.getElementById("distance-value");
+    const buzzerEl = document.getElementById("buzzer-status");
+    
+    if (distanceEl && distance !== undefined) {
+        distanceEl.textContent = distance + " cm";
+        
+        // Ubah warna berdasarkan jarak
+        if (distance < 30) {
+            distanceEl.classList.add("text-red-600", "font-bold");
+            distanceEl.classList.remove("text-green-600");
+        } else {
+            distanceEl.classList.add("text-green-600");
+            distanceEl.classList.remove("text-red-600", "font-bold");
+        }
+    }
+    
+    if (buzzerEl && buzzer !== undefined) {
+        buzzerEl.textContent = buzzer === 1 ? "AKTIF ⚠️" : "Mati";
+        buzzerEl.className = buzzer === 1 ? "text-red-600 font-bold" : "text-gray-600";
+    }
 }
 
 // UPDATE UI SOS
@@ -116,9 +143,11 @@ function updateSOSUI(status) {
 
     btn.disabled = true;
     btn.classList.add("bg-gray-400", "cursor-not-allowed");
+    btn.textContent = "TANGGAPI SOS";
 
-    if (status === "sos") {
-        ind.textContent = "SOS DARURAT!";
+    // Status: "bahaya" (button SOS ditekan)
+    if (status === "bahaya") {
+        ind.textContent = "🚨 SOS DARURAT!";
         ind.classList.replace("text-green-500", "text-red-600");
 
         card.classList.add("sos-active", "bg-red-50");
@@ -128,24 +157,59 @@ function updateSOSUI(status) {
         btn.classList.remove("cursor-not-allowed");
         btn.onclick = supervisorOnTheWay;
 
-    } else if (status === "pengawas menuju ke sana") {
-        ind.textContent = "Pengawas Sedang Menuju!";
+    // Status: "otw" (pengawas sedang dalam perjalanan)
+    } else if (status === "otw") {
+        ind.textContent = "🚶 Pengawas Sedang Menuju!";
         ind.classList.replace("text-green-500", "text-yellow-600");
         card.classList.add("sos-waiting", "bg-yellow-50");
 
         btn.disabled = true;
         btn.textContent = "SEDANG DALAM PERJALANAN...";
         btn.classList.replace("bg-gray-400", "bg-yellow-600");
+        
+    // Status: "aman" (kondisi normal/sudah ditangani)
+    } else {
+        // Default sudah di-set di atas (AMAN)
     }
 }
 
-// PENGAWAS MENUJU
+// PENGAWAS MENUJU (OTW)
 function supervisorOnTheWay() {
-    // Update field "sos" sesuai database
+    // Ubah status ke "otw"
     db.ref("devices/pengguna/sos")
-        .set("pengawas menuju ke sana")
-        .then(() => console.log("Status diubah → pengawas menuju ke sana"));
+        .set("otw")
+        .then(() => {
+            console.log("Status diubah → otw");
+            
+            // Setelah 3 detik, ubah status ke "aman"
+            setTimeout(() => {
+                db.ref("devices/pengguna/sos")
+                    .set("aman")
+                    .then(() => console.log("Status diubah → aman (setelah 3 detik)"));
+            }, 3000);
+        });
 }
+
+// LOGIC API - CEK JARAK DAN UPDATE BUZZER
+function checkDistanceAndUpdateBuzzer() {
+    db.ref("devices/pengguna/distance").once("value", snap => {
+        const distance = snap.val();
+        
+        if (distance !== null && distance !== undefined) {
+            // Jika jarak < 30cm, nyalakan buzzer
+            const buzzerStatus = distance < 30 ? 1 : 0;
+            
+            db.ref("devices/pengguna/buzzer")
+                .set(buzzerStatus)
+                .then(() => {
+                    console.log(`Buzzer updated: ${buzzerStatus} (distance: ${distance}cm)`);
+                });
+        }
+    });
+}
+
+// Jalankan pengecekan jarak setiap 1 detik
+setInterval(checkDistanceAndUpdateBuzzer, 1000);
 
 // START APP
 window.onload = () => {
