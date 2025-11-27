@@ -54,8 +54,9 @@ function listenUserData() {
         const defaultNama = "Yuli";
         const defaultHp = "+62 812-3456-7890";
 
-        const nama = data?.nama || defaultNama;
-        const hp = data?.nomor_hp || defaultHp;
+        // Sesuaikan dengan field database: "pengguna" dan "hp_pengawas"
+        const nama = data?.pengguna || defaultNama;
+        const hp = data?.hp_pengawas || defaultHp;
 
         document.getElementById("pengguna-nama").textContent = nama;
         document.getElementById("pengguna-hp").textContent = hp;
@@ -65,31 +66,37 @@ function listenUserData() {
             return;
         }
 
-        const lat = data.lat;
-        const long = data.long;
+        // Cek apakah ada data Location
+        const location = data.Location;
+        if (location) {
+            const lat = location.lat;
+            const lon = location.lon; // Database menggunakan "lon" bukan "long"
 
-        if (validCoord(lat) && validCoord(long)) {
-            let pos = [parseFloat(lat), parseFloat(long)];
-            userMarker.setLatLng(pos);
+            if (validCoord(lat) && validCoord(lon)) {
+                let pos = [parseFloat(lat), parseFloat(lon)];
+                userMarker.setLatLng(pos);
 
-            if (!map.getBounds().contains(pos)) {
-                map.setView(pos, 16);
+                if (!map.getBounds().contains(pos)) {
+                    map.setView(pos, 16);
+                }
+
+                userMarker.bindPopup(`<b>${nama}</b><br>HP: ${hp}`).openPopup();
             }
-
-            userMarker.bindPopup(`<b>${nama}</b><br>HP: ${hp}`).openPopup();
         }
 
-        updateSOSUI(data["status-sos"] || "aman");
+        // Database menggunakan "sos" bukan "status-sos"
+        updateSOSUI(data.sos || "aman");
     });
 }
 
 // LISTEN DATA PENGAWAS
 function listenSupervisorData() {
-    db.ref("devices/pengawas").on("value", snap => {
+    db.ref("devices/pengguna").on("value", snap => {
         let data = snap.val();
 
         const defaultNama = "Titin";
-        const nama = (data?.nama || defaultNama);
+        // Database menggunakan field "pengawas" untuk nama pengawas
+        const nama = data?.pengawas || defaultNama;
         
         document.getElementById("supervisor-name").textContent = "Halo, " + nama + "!";
     });
@@ -134,7 +141,8 @@ function updateSOSUI(status) {
 
 // PENGAWAS MENUJU
 function supervisorOnTheWay() {
-    db.ref("devices/pengguna/status-sos")
+    // Update field "sos" sesuai database
+    db.ref("devices/pengguna/sos")
         .set("pengawas menuju ke sana")
         .then(() => console.log("Status diubah → pengawas menuju ke sana"));
 }
