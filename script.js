@@ -1,6 +1,6 @@
-// Mengganti alert dan confirm agar tidak muncul di iframe
-window.alert = (message) => console.log("Alert diblokir:", message);
-window.confirm = (message) => { console.log("Konfirmasi diblokir:", message); return false; };
+// Mengganti alert() & confirm() agar tidak muncul di iFrame
+window.alert = (msg) => console.log("Alert diblokir:", msg);
+window.confirm = (msg) => { console.log("Konfirmasi diblokir:", msg); return false; };
 
 // FIREBASE CONFIG
 const firebaseConfig = {
@@ -16,9 +16,9 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+// GLOBAL VARIABLE
 let map;
 let userMarker;
-
 const DEFAULT_POS = [-7.7956, 110.3695];
 
 // INIT MAP
@@ -26,14 +26,13 @@ function initLeaflet() {
     map = L.map('map').setView(DEFAULT_POS, 15);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 19
     }).addTo(map);
 
     const userIcon = L.divIcon({
         className: 'custom-marker',
-        html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#0D6E9F" width="40" height="40">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-              </svg>`,
+        html: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#0D6E9F" width="40px" height="40px"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>',
         iconSize: [40, 40],
         iconAnchor: [20, 40]
     });
@@ -47,86 +46,100 @@ function validCoord(val) {
     return !isNaN(num) && num !== 0;
 }
 
-// LISTENER PENGGUNA
+// LISTEN DATA PENGGUNA
 function listenUserData() {
     db.ref("devices/pengguna").on("value", snap => {
         let data = snap.val();
-        if (!data) return;
 
-        document.getElementById("pengguna-nama").textContent = data.nama || "Tidak Diketahui";
-        document.getElementById("pengguna-hp").textContent = data.hp || "-";
+        const defaultNama = "Yuli";
+        const defaultHp = "+62 812-3456-7890";
+
+        const nama = data?.nama || defaultNama;
+        const hp = data?.nomor_hp || defaultHp;
+
+        document.getElementById("pengguna-nama").textContent = nama;
+        document.getElementById("pengguna-hp").textContent = hp;
+
+        if (!data) {
+            updateSOSUI("aman");
+            return;
+        }
 
         const lat = data.lat;
         const long = data.long;
 
         if (validCoord(lat) && validCoord(long)) {
-            let newPos = [parseFloat(lat), parseFloat(long)];
-            userMarker.setLatLng(newPos);
+            let pos = [parseFloat(lat), parseFloat(long)];
+            userMarker.setLatLng(pos);
 
-            if (map.getCenter().lat === DEFAULT_POS[0] || !map.getBounds().contains(newPos)) {
-                map.setView(newPos, 16);
+            if (!map.getBounds().contains(pos)) {
+                map.setView(pos, 16);
             }
+
+            userMarker.bindPopup(`<b>${nama}</b><br>HP: ${hp}`).openPopup();
         }
 
         updateSOSUI(data["status-sos"] || "aman");
     });
 }
 
-// LISTENER PENGAWAS
+// LISTEN DATA PENGAWAS
 function listenSupervisorData() {
     db.ref("devices/pengawas").on("value", snap => {
         let data = snap.val();
-        if (!data) return;
 
-        document.getElementById("supervisor-name").textContent =
-            "Halo, " + (data.nama || "Pengawas") + "!";
+        const defaultNama = "Titin";
+        const nama = (data?.nama || defaultNama);
+        
+        document.getElementById("supervisor-name").textContent = "Halo, " + nama + "!";
     });
 }
 
-// UPDATE SOS UI
+// UPDATE UI SOS
 function updateSOSUI(status) {
     const ind = document.getElementById("sos-status-indicator");
     const card = document.getElementById("sos-status-card");
     const btn = document.getElementById("supervisor-action-btn");
 
-    card.className = "sos-alert-box p-6 rounded-xl shadow-lg border-l-8 bg-white";
-    ind.className = "text-xl font-bold mt-4 text-green-500";
+    // Reset state
+    card.classList.remove("sos-active", "sos-waiting", "bg-red-50", "bg-yellow-50");
+    ind.classList.remove("text-red-600", "text-yellow-600");
+    ind.classList.add("text-green-500");
+    ind.textContent = "AMAN";
 
     btn.disabled = true;
-    btn.textContent = "SAYA AKAN KE SANA";
-    btn.className = "w-full py-4 px-6 rounded-xl text-lg font-bold bg-gray-400 text-white cursor-not-allowed";
+    btn.classList.add("bg-gray-400", "cursor-not-allowed");
 
     if (status === "sos") {
         ind.textContent = "SOS DARURAT!";
-        card.classList.add("sos-active", "border-red-500", "bg-red-50");
         ind.classList.replace("text-green-500", "text-red-600");
+
+        card.classList.add("sos-active", "bg-red-50");
 
         btn.disabled = false;
         btn.classList.replace("bg-gray-400", "bg-red-600");
         btn.classList.remove("cursor-not-allowed");
+        btn.onclick = supervisorOnTheWay;
 
     } else if (status === "pengawas menuju ke sana") {
         ind.textContent = "Pengawas Sedang Menuju!";
-        card.classList.add("sos-waiting", "border-yellow-500", "bg-yellow-50");
         ind.classList.replace("text-green-500", "text-yellow-600");
+        card.classList.add("sos-waiting", "bg-yellow-50");
 
+        btn.disabled = true;
         btn.textContent = "SEDANG DALAM PERJALANAN...";
         btn.classList.replace("bg-gray-400", "bg-yellow-600");
     }
 }
 
-// ACTION BUTTON
+// PENGAWAS MENUJU
 function supervisorOnTheWay() {
-    db.ref("devices/pengguna/status-sos").set("pengawas menuju ke sana")
-        .then(() => {
-            const btn = document.getElementById("supervisor-action-btn");
-            btn.textContent = "Status Terkirim!";
-            btn.classList.replace("bg-red-600", "bg-yellow-600");
-        })
-        .catch(console.error);
+    db.ref("devices/pengguna/status-sos")
+        .set("pengawas menuju ke sana")
+        .then(() => console.log("Status diubah → pengawas menuju ke sana"));
 }
 
-// START
+// START APP
 window.onload = () => {
     initLeaflet();
     listenSupervisorData();
